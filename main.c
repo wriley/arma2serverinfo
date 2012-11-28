@@ -3,6 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <signal.h>
+
+int timedout = 0;
+
+#define TIMEOUT_SECS    5
+void CatchAlarm(int ignored);
 
 int main(int argc, char* argv[])
 {
@@ -10,10 +17,25 @@ int main(int argc, char* argv[])
     struct sockaddr_in servaddr,cliaddr;
     char rbuf[1500],sbuf[15];
     char challenge_request[7] = {0xFE, 0xFD, 0x09, 0xAB, 0xAB, 0xAB, 0xFF};
+    struct sigaction myAction;
 
     if(argc != 3)
     {
-        printf("Usage: argv[0] <hostname> <port>\n");
+        printf("Usage: %s <hostname> <port>\n", argv[0]);
+        exit(1);
+    }
+
+    myAction.sa_handler = CatchAlarm;
+    if (sigfillset(&myAction.sa_mask) < 0)
+    {
+        fprintf(stderr, "sigfillset() failed\n");
+        exit(1);
+    }
+    myAction.sa_flags = 0;
+
+    if (sigaction(SIGALRM, &myAction, 0) < 0)
+    {
+        fprintf(stderr, "sigaction() failed\n");
         exit(1);
     }
 
@@ -36,7 +58,17 @@ int main(int argc, char* argv[])
         fprintf(stderr, "Error sending\n");
         exit(1);
     }
+    fprintf(stderr, "waiting on response...\n");
+    alarm(TIMEOUT_SECS);
     n = recvfrom(sockfd, rbuf, 1500, 0, NULL, NULL);
+    alarm(0);
+
+    if(timedout == 1)
+    {
+        fprintf(stderr, "timed out waiting for response\n");
+        exit(1);
+    }
+
     if(n == -1)
     {
         fprintf(stderr, "Error receiving\n");
@@ -44,20 +76,11 @@ int main(int argc, char* argv[])
         exit(1);
     }
     fprintf(stderr, "received %d bytes\n", n);
-    for(i = 0; i < n; i++)
-    {
-        fprintf(stderr, "0x%02x, ", rbuf[i]);
-    }
-    fprintf(stderr, "\n");
 
     char temp[n-5];
     for(i = 0; i < n - 5; i++)
     {
         temp[i] = rbuf[i+5];
-    }
-    for(i = 0; i < n-5; i++)
-    {
-        fprintf(stderr, "temp[%02d] = 0x%02x = %c\n", i, temp[i], temp[i]);
     }
     int s = atoi(temp);
 
@@ -86,7 +109,16 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
+    alarm(TIMEOUT_SECS);
     n = recvfrom(sockfd, rbuf, 1500, 0, NULL, NULL);
+    alarm(0);
+
+    if(timedout == 1)
+    {
+        fprintf(stderr, "timed out waiting for response\n");
+        exit(1);
+    }
+
     if(n == -1)
     {
         fprintf(stderr, "Error receiving\n");
@@ -107,4 +139,9 @@ int main(int argc, char* argv[])
 
     close(sockfd);
     return 0;
+}
+
+void CatchAlarm(int unused)
+{
+    timedout = 1;
 }
