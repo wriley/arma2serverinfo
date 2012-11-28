@@ -133,7 +133,10 @@ int main(int argc, char* argv[])
         {
             printf("\n");
         } else {
-            printf("%c", rbuf[i]);
+            if(rbuf[i] >= 32 && rbuf[i] < 127)
+            {
+                printf("%c", rbuf[i]);
+            }
         }
     }
 
