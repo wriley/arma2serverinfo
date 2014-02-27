@@ -1,8 +1,8 @@
 dayzserverinfo: main.c
-	@gcc -o dayzserverinfo main.c
+	@gcc -o arma2serverinfo main.c
 
 clean:
-	@/bin/rm -f dayzserverinfo
+	@/bin/rm -f arma2serverinfo
 
 install:
-	@/usr/bin/install -v --owner root --group root --mode 0755 dayzserverinfo /usr/local/bin/
+	@/usr/bin/install -v --owner root --group root --mode 0755 arma2serverinfo /usr/local/bin/
