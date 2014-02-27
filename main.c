@@ -56,6 +56,7 @@ int main(int argc, char* argv[])
         (struct sockaddr *)&servaddr,sizeof(servaddr)) < 1)
     {
         fprintf(stderr, "Error sending\n");
+        close(sockfd);
         exit(1);
     }
     fprintf(stderr, "waiting on response...\n");
@@ -66,6 +67,7 @@ int main(int argc, char* argv[])
     if(timedout == 1)
     {
         fprintf(stderr, "timed out waiting for response\n");
+        close(sockfd);
         exit(1);
     }
 
@@ -106,6 +108,7 @@ int main(int argc, char* argv[])
         (struct sockaddr *)&servaddr,sizeof(servaddr)) < 1)
     {
         fprintf(stderr, "Error sending\n");
+        close(sockfd);
         exit(1);
     }
 
@@ -116,6 +119,7 @@ int main(int argc, char* argv[])
     if(timedout == 1)
     {
         fprintf(stderr, "timed out waiting for response\n");
+        close(sockfd);
         exit(1);
     }
 
