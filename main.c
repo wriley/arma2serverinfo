@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
     close(sockfd);
 
     if(rbuf[4] != 0x49) {
-        printf("Error: header was %c instead of 0x49\n");
+        printf("Error: header was 0x%x instead of 0x49\n", rbuf[4]);
         exit(1);
     }
 
