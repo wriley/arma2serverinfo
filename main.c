@@ -18,6 +18,7 @@ int main(int argc, char* argv[]) {
     struct sockaddr_in servaddr,cliaddr;
     unsigned char rbuf[1500], edf, s1, s2, i1, i2, i3, i4;
     char A2S_INFO[25] = {0xFF, 0xFF, 0xFF, 0xFF, 0x54, 0x53, 0x6F, 0x75, 0x72, 0x63, 0x65, 0x20, 0x45, 0x6E, 0x67, 0x69, 0x6E, 0x65, 0x20, 0x51, 0x75, 0x65, 0x72, 0x79, 0x00};
+    char A2S_PLAYER[9] = {0xFF, 0xFF, 0xFF, 0xFF, 0x55, 0xFF, 0xFF, 0xFF, 0xFF};
     struct sigaction myAction;
     char *info;
 
@@ -72,10 +73,10 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
     fprintf(stderr, "received %d bytes\n", n);
-    close(sockfd);
 
     if(rbuf[4] != 0x49) {
         printf("Error: header was 0x%x instead of 0x49\n", rbuf[4]);
+        close(sockfd);
         exit(1);
     }
 
@@ -167,6 +168,119 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // reset sPtr
+    sPtr = 5;
+
+    // Get players
+    fprintf(stderr, "sending A2S_PLAYER query\n");
+    if(sendto(sockfd, A2S_PLAYER, 25, 0, (struct sockaddr *)&servaddr,sizeof(servaddr)) < 1) {
+        fprintf(stderr, "Error sending\n");
+        close(sockfd);
+        exit(1);
+    }
+
+    alarm(TIMEOUT_SECS);
+    n = recvfrom(sockfd, rbuf, 1500, 0, NULL, NULL);
+    alarm(0);
+
+    if(timedout == 1) {
+        fprintf(stderr, "timed out waiting for response\n");
+        close(sockfd);
+        exit(1);
+    }
+
+    if(n == -1) {
+        fprintf(stderr, "Error receiving\n");
+        close(sockfd);
+        exit(1);
+    }
+    fprintf(stderr, "received %d bytes\n", n);
+    //hexDump("rbuf", &rbuf, n);
+
+    if(rbuf[4] != 0x41) {
+        printf("Error: header was 0x%x instead of 0x41\n", rbuf[4]);
+        close(sockfd);
+        exit(1);
+    }
+
+    // Challenge number
+    i1 = rbuf[sPtr++];
+    i2 = rbuf[sPtr++];
+    i3 = rbuf[sPtr++];
+    i4 = rbuf[sPtr++];
+    uint32_t chnum = i4<<24 | i3<<16 | i2<<8 | i1;
+    fprintf(stderr,"Challenge number: %d\n", chnum);
+
+    A2S_PLAYER[5] = chnum;
+    A2S_PLAYER[6] = chnum >> 8;
+    A2S_PLAYER[7] = chnum >> 16;
+    A2S_PLAYER[8] = chnum >> 24;
+
+    //hexDump("A2S_PLAYER", &A2S_PLAYER, sizeof(A2S_PLAYER));
+
+    fprintf(stderr, "sending A2S_PLAYER query\n");
+    if(sendto(sockfd, A2S_PLAYER, 25, 0, (struct sockaddr *)&servaddr,sizeof(servaddr)) < 1) {
+        fprintf(stderr, "Error sending\n");
+        close(sockfd);
+        exit(1);
+    }
+
+    alarm(TIMEOUT_SECS);
+    n = recvfrom(sockfd, rbuf, 1500, 0, NULL, NULL);
+    alarm(0);
+
+    if(timedout == 1) {
+        fprintf(stderr, "timed out waiting for response\n");
+        close(sockfd);
+        exit(1);
+    }
+
+    if(n == -1) {
+        fprintf(stderr, "Error receiving\n");
+        close(sockfd);
+        exit(1);
+    }
+    fprintf(stderr, "received %d bytes\n", n);
+    //hexDump("rbuf", &rbuf, n);
+
+    if(rbuf[4] != 0x44) {
+        printf("Error: header was 0x%x instead of 0x44\n", rbuf[4]);
+        close(sockfd);
+        exit(1);
+    }
+
+    sPtr = 5;
+    uint8_t Players = rbuf[sPtr++];
+    uint8_t Index = 0;
+    
+    if(Players > 0) {
+        printf("PLAYER LIST:\n");
+    }
+
+    for(i = 0; i < Players; i++) {
+        // Index (this seems to be always 0 ??)
+        Index = rbuf[sPtr++];
+        // Name
+        info = getString(rbuf, &sPtr);
+        // Score
+        i1 = rbuf[sPtr++];
+        i2 = rbuf[sPtr++];
+        i3 = rbuf[sPtr++];
+        i4 = rbuf[sPtr++];
+        uint32_t Score = i4<<24 | i3<<16 | i2<<8 | i1;
+        // Duration
+        i1 = rbuf[sPtr++];
+        i2 = rbuf[sPtr++];
+        i3 = rbuf[sPtr++];
+        i4 = rbuf[sPtr++];
+        uint32_t d = i4<<24 | i3<<16 | i2<<8 | i1;
+        float Duration = *(float *)&d;
+        
+        printf("%s %d %.0f\n", info, Score, Duration);
+    }
+     
+
+    close(sockfd);
     return 0;
 }
 
